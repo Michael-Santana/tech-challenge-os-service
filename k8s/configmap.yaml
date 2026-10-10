@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: os-service-config
+  namespace: os-service
+data:
+  # Banco de dados
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-service:5432/os_service"
+  # JPA
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "none"
+  SPRING_JPA_SHOW_SQL: "false"
+  # Flyway
+  SPRING_FLYWAY_ENABLED: "true"
+  SPRING_FLYWAY_LOCATIONS: "classpath:db/migration"
+  # MongoDB (historico/auditoria)
+  SPRING_DATA_MONGODB_URI: "mongodb://mongodb-service:27017/os_service_history"
+  # RabbitMQ
+  SPRING_RABBITMQ_HOST: "rabbitmq-service"
+  SPRING_RABBITMQ_PORT: "5672"
+  # Servidor
+  SERVER_PORT: "8081"
+  SERVER_SERVLET_CONTEXT_PATH: "/api/v1"
+  # RabbitMQ - topico da aplicacao
+  APP_RABBITMQ_EXCHANGE: "os.exchange"
+  APP_RABBITMQ_QUEUE: "os.events.queue"
+  APP_RABBITMQ_ROUTING_KEY: "os.event"
+

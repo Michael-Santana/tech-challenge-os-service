@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: tech-challenge-os-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/os_service
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/os_service_history
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+server:
+  port: 8081
+  servlet:
+    context-path: /api/v1
+
+app:
+  rabbitmq:
+    exchange: os.exchange
+    queue: os.events.queue
+    routing-key: os.event
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    enabled: true

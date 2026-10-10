@@ -1,0 +1,53 @@
+name: CI - Testes
+
+# Testes automatizados + cobertura JaCoCo - executado em pushes e PRs
+on:
+  push:
+    branches: ["main", "develop", "feature/**", "hotfix/**"]
+  pull_request:
+    branches: ["main", "develop"]
+
+env:
+  JAVA_VERSION: '21'
+
+jobs:
+  test:
+    name: Testes Automatizados
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout do repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Permissao de execucao do Maven Wrapper
+        run: chmod +x mvnw
+
+      - name: Testes + Cobertura JaCoCo
+        run: ./mvnw -B clean verify
+
+      - name: Upload relatorio JaCoCo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report-${{ github.run_number }}
+          path: target/site/jacoco/
+          retention-days: 14
+
+      - name: Upload resultados Surefire
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-${{ github.run_number }}
+          path: target/surefire-reports/
+          retention-days: 7
+

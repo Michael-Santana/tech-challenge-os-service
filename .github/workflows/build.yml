@@ -1,0 +1,42 @@
+name: CI - Build
+
+# Build da aplicacao (sem testes) - executado em pushes nas branches principais
+on:
+  push:
+    branches: ["main", "develop", "feature/**", "hotfix/**"]
+
+env:
+  JAVA_VERSION: '21'
+
+jobs:
+  build:
+    name: Build da Aplicacao
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout do repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Permissao de execucao do Maven Wrapper
+        run: chmod +x mvnw
+
+      - name: Build (skip tests)
+        run: ./mvnw -B clean package -DskipTests
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: os-service-jar-${{ github.sha }}
+          path: target/*.jar
+          retention-days: 3
+

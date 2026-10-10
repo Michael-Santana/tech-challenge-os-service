@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: os-service-app
+  namespace: os-service
+  labels:
+    app: os-service-app
+    version: "1.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: os-service-app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0        # Zero downtime deploy
+  template:
+    metadata:
+      labels:
+        app: os-service-app
+    spec:
+      # Distribui pods em nos diferentes para alta disponibilidade
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values: [os-service-app]
+                topologyKey: "kubernetes.io/hostname"
+
+      containers:
+        - name: os-service-app
+          image: ghcr.io/michael-santana/tech-challenge-os-service:latest  # <- substitua
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
+
+          # Variaveis nao sensiveis do ConfigMap
+          envFrom:
+            - configMapRef:
+                name: os-service-config
+
+          # Variaveis sensiveis do Secret
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: os-service-secrets
+                  key: DB_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: os-service-secrets
+                  key: DB_PASSWORD
+            - name: SPRING_RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: os-service-secrets
+                  key: RABBITMQ_USERNAME
+            - name: SPRING_RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: os-service-secrets
+                  key: RABBITMQ_PASSWORD
+
+          # Limites de recursos (base para o HPA)
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          # Probe: aguarda a aplicacao inicializar (Flyway pode demorar)
+          startupProbe:
+            httpGet:
+              path: /api/v1/actuator/health
+              port: 8081
+            failureThreshold: 30
+            periodSeconds: 10
+
+          # Probe: remove o pod do load balancer se nao responder
+          livenessProbe:
+            httpGet:
+              path: /api/v1/actuator/health/liveness
+              port: 8081
+            initialDelaySeconds: 0
+            periodSeconds: 15
+            failureThreshold: 3
+
+          # Probe: so envia trafego quando a app estiver pronta
+          readinessProbe:
+            httpGet:
+              path: /api/v1/actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            failureThreshold: 3
+
