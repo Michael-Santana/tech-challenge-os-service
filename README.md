@@ -84,6 +84,15 @@ Essa escolha reaproveita o RabbitMQ e reduz o acoplamento entre os servicos.
 A integracao completa com Billing e Execution e as compensacoes ainda precisam
 ser implementadas; a publicacao de eventos por si so nao constitui uma Saga.
 
+O OS consome eventos de execucao pela chave `execution.status` do exchange
+`os.exchange` e rejeicoes de orcamento pela chave `billing.budget_rejected`
+do exchange `billing.exchange`. Cada evento precisa de `eventId`, `eventType`
+e `orderId`; se houver `status`, ele deve corresponder ao estado da OS. A
+inbox e a atualizacao de status compartilham uma transacao PostgreSQL, evitando
+reaplicar mensagens duplicadas. Transicoes invalidas falham explicitamente;
+apos cinco tentativas a mensagem vai para `os.saga.events.dlq` e requer analise.
+O Billing que produz `BUDGET_REJECTED` ainda precisa ser implementado.
+
 As mudancas da OS e seus eventos sao gravados na mesma transacao PostgreSQL.
 Um dispatcher grava o historico no MongoDB e publica o evento no RabbitMQ,
 aguardando confirmacao e verificando mensagens devolvidas. Em caso de falha,

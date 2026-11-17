@@ -49,7 +49,8 @@ public class OrderServiceImpl {
 
     @Transactional
     public OrderResponse updateStatus(Long id, UpdateOrderStatusRequest request) {
-        Order order = getOrder(id);
+        Order order = orderRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ordem de servico nao encontrada: " + id));
         OrderStatus previousStatus = order.getStatus();
 
         validateStatusTransition(previousStatus, request.getStatus());

@@ -92,7 +92,7 @@ class OrderServiceTest {
     @DisplayName("updateStatus deve alterar status e registrar evento")
     void updateStatus_deveAlterarStatus() {
         Order order = Order.builder().id(1L).status(OrderStatus.RECEBIDA).build();
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UpdateOrderStatusRequest request = new UpdateOrderStatusRequest();
@@ -108,7 +108,7 @@ class OrderServiceTest {
     @DisplayName("updateStatus para FINALIZADA deve preencher data de finalizacao")
     void updateStatus_finalizada_devePreencherDataFim() {
         Order order = Order.builder().id(1L).status(OrderStatus.EM_EXECUCAO).build();
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UpdateOrderStatusRequest request = new UpdateOrderStatusRequest();
@@ -124,7 +124,7 @@ class OrderServiceTest {
     @DisplayName("updateStatus nao deve permitir alterar OS entregue")
     void updateStatus_entregue_deveLancarExcecao() {
         Order order = Order.builder().id(1L).status(OrderStatus.ENTREGUE).build();
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(order));
 
         UpdateOrderStatusRequest request = new UpdateOrderStatusRequest();
         request.setStatus(OrderStatus.EM_EXECUCAO);
@@ -137,7 +137,7 @@ class OrderServiceTest {
     @DisplayName("updateStatus para o mesmo status deve lancar excecao")
     void updateStatus_mesmoStatus_deveLancarExcecao() {
         Order order = Order.builder().id(1L).status(OrderStatus.RECEBIDA).build();
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(order));
 
         UpdateOrderStatusRequest request = new UpdateOrderStatusRequest();
         request.setStatus(OrderStatus.RECEBIDA);

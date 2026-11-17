@@ -1,0 +1,4 @@
+CREATE TABLE saga_inbox (
+    event_id VARCHAR(128) PRIMARY KEY,
+    processed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
