@@ -26,6 +26,17 @@ spring:
     port: 5672
     username: guest
     password: guest
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 5
+          initial-interval: 1s
+          multiplier: 2
+          max-interval: 10s
 
 server:
   port: 8081
@@ -37,6 +48,8 @@ app:
     exchange: os.exchange
     queue: os.events.queue
     routing-key: os.event
+  outbox:
+    delay-ms: ${OUTBOX_DELAY_MS:1000}
 
 management:
   endpoints:

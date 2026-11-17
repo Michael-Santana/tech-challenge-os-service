@@ -21,6 +21,8 @@ spec:
       labels:
         app: os-service-app
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull
       # Distribui pods em nos diferentes para alta disponibilidade
       affinity:
         podAntiAffinity:
@@ -48,26 +50,28 @@ spec:
 
           # Variaveis sensiveis do Secret
           env:
-            - name: SPRING_DATASOURCE_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: os-service-secrets
-                  key: DB_USERNAME
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: os-service-secrets
-                  key: DB_PASSWORD
+                  name: os-postgresql
+                  key: password
+            - name: OS_MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: os-mongodb
+                  key: mongodb-passwords
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb://os_service:$(OS_MONGODB_PASSWORD)@os-mongodb.os-service.svc.cluster.local:27017/os_service_history?authSource=os_service_history"
             - name: SPRING_RABBITMQ_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: os-service-secrets
-                  key: RABBITMQ_USERNAME
+                  name: rabbitmq-credentials
+                  key: username
             - name: SPRING_RABBITMQ_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: os-service-secrets
-                  key: RABBITMQ_PASSWORD
+                  name: rabbitmq-credentials
+                  key: password
 
           # Limites de recursos (base para o HPA)
           resources:
@@ -103,4 +107,3 @@ spec:
             initialDelaySeconds: 0
             periodSeconds: 10
             failureThreshold: 3
-

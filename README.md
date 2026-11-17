@@ -30,7 +30,7 @@ src/main/java/com/tech/challenger/execution/service/os/
 │   ├── dto/                    # DTOs de entrada/saida
 │   ├── event/                  # Publicador de eventos (RabbitMQ)
 │   ├── exception/              # Excecoes de negocio
-│   └── service/                # OrderServiceImpl, SagaOrchestrator
+│   └── service/                # OrderServiceImpl
 ├── infrastructure/             # Adaptadores de infraestrutura
 │   └── config/                 # DatabaseConfig, RabbitMQConfig
 └── presentation/               # Adaptadores de entrada
@@ -76,6 +76,33 @@ curl http://localhost:8081/api/v1/orders/1/history
 
 (`CANCELADA` a qualquer momento; OS `ENTREGUE` ou `CANCELADA` nao permite mais alteracoes)
 
+## Eventos e Saga
+
+A estrategia escolhida para a integracao e Saga coreografada: cada servico reage
+a eventos e executa sua propria etapa e compensacao, sem coordenador central.
+Essa escolha reaproveita o RabbitMQ e reduz o acoplamento entre os servicos.
+A integracao completa com Billing e Execution e as compensacoes ainda precisam
+ser implementadas; a publicacao de eventos por si so nao constitui uma Saga.
+
+O OS consome eventos de execucao pela chave `execution.status` do exchange
+`os.exchange` e rejeicoes de orcamento pela chave `billing.budget_rejected`
+do exchange `billing.exchange`. Cada evento precisa de `eventId`, `eventType`
+e `orderId`; se houver `status`, ele deve corresponder ao estado da OS. A
+inbox e a atualizacao de status compartilham uma transacao PostgreSQL, evitando
+reaplicar mensagens duplicadas. Transicoes invalidas falham explicitamente;
+apos cinco tentativas a mensagem vai para `os.saga.events.dlq` e requer analise.
+O Billing que produz `BUDGET_REJECTED` ainda precisa ser implementado.
+
+As mudancas da OS e seus eventos sao gravados na mesma transacao PostgreSQL.
+Um dispatcher grava o historico no MongoDB e publica o evento no RabbitMQ,
+aguardando confirmacao e verificando mensagens devolvidas. Em caso de falha,
+o evento permanece pendente para nova tentativa. O historico e eventualmente
+consistente e pode demorar a aparecer. Uma queda apos a publicacao pode causar
+reenvio; consumidores devem tratar o `id` do evento de maneira idempotente.
+A confirmacao do broker nao garante que todos os consumidores tenham uma fila
+vinculada. As filas dos consumidores devem estar declaradas antes da publicacao;
+o provisionamento compartilhado dessas filas ainda precisa ser concluido.
+
 ## Executando localmente
 
 ### Pre-requisitos
@@ -106,5 +133,33 @@ Swagger UI disponivel em: `http://localhost:8081/api/v1/swagger-ui.html`
 
 - `docker/Dockerfile` - Imagem Docker multi-stage da aplicacao
 - `docker-compose.yml` - Orquestracao local (app + PostgreSQL + MongoDB + RabbitMQ)
-- `k8s/` - Manifests Kubernetes (namespace, deployment, service, configmap, secret, pvc)
+- `k8s/` - Manifests Kubernetes (namespace, deployment, service e configmap)
 - `.github/workflows/` - Pipelines CI/CD (build, test, deploy)
+
+O deploy Kubernetes requer a infraestrutura compartilhada provisionada previamente:
+PostgreSQL `os-postgresql`, MongoDB `os-mongodb` para historico e o Secret
+`rabbitmq-credentials`. Os bancos e suas credenciais sao gerenciados pela
+infraestrutura, nao pelos manifests de aplicacao.
+
+## CI/CD e protecao da main
+
+O workflow `OS CI/CD` executa `sh ./mvnw -B clean verify` em PRs e pushes
+para `main` ou `feature/**`, exige 80% de cobertura de linhas no JaCoCo e
+aguarda o quality gate do Sonar. Configure o secret de repositorio
+`SONAR_TOKEN` e as variables `SONAR_HOST_URL` e `SONAR_PROJECT_KEY`;
+para SonarCloud configure tambem `SONAR_ORGANIZATION`. O projeto Sonar deve
+estar configurado para analisar as branches e PRs utilizados.
+
+Apos push validado em `main`, o workflow publica a imagem GHCR com a tag do
+commit e implanta no namespace `os-service`, aguardando o rollout. Configure no
+environment `production` o secret `KUBE_CONFIG` com o kubeconfig completo em
+texto, de um cluster acessivel ao runner, com permissoes para os recursos do
+deploy. Provisione antes os bancos e secrets mencionados acima e o secret
+Kubernetes `ghcr-pull` no namespace `os-service`, com acesso de leitura a imagem
+GHCR. Nao grave credenciais no repositorio.
+
+Configure no GitHub a protecao de `main` para exigir pull request e o check
+`Build, testes e qualidade` apos o workflow estar disponivel no PR. PRs de
+forks nao recebem o secret do Sonar e, por isso, o check falha explicitamente;
+contribuicoes externas devem ser aplicadas em uma branch confiavel do
+repositorio por um mantenedor, sem expor secrets ao codigo nao revisado.
