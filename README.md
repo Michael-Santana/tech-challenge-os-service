@@ -30,7 +30,7 @@ src/main/java/com/tech/challenger/execution/service/os/
 │   ├── dto/                    # DTOs de entrada/saida
 │   ├── event/                  # Publicador de eventos (RabbitMQ)
 │   ├── exception/              # Excecoes de negocio
-│   └── service/                # OrderServiceImpl, SagaOrchestrator
+│   └── service/                # OrderServiceImpl
 ├── infrastructure/             # Adaptadores de infraestrutura
 │   └── config/                 # DatabaseConfig, RabbitMQConfig
 └── presentation/               # Adaptadores de entrada
@@ -76,6 +76,24 @@ curl http://localhost:8081/api/v1/orders/1/history
 
 (`CANCELADA` a qualquer momento; OS `ENTREGUE` ou `CANCELADA` nao permite mais alteracoes)
 
+## Eventos e Saga
+
+A estrategia escolhida para a integracao e Saga coreografada: cada servico reage
+a eventos e executa sua propria etapa e compensacao, sem coordenador central.
+Essa escolha reaproveita o RabbitMQ e reduz o acoplamento entre os servicos.
+A integracao completa com Billing e Execution e as compensacoes ainda precisam
+ser implementadas; a publicacao de eventos por si so nao constitui uma Saga.
+
+As mudancas da OS e seus eventos sao gravados na mesma transacao PostgreSQL.
+Um dispatcher grava o historico no MongoDB e publica o evento no RabbitMQ,
+aguardando confirmacao e verificando mensagens devolvidas. Em caso de falha,
+o evento permanece pendente para nova tentativa. O historico e eventualmente
+consistente e pode demorar a aparecer. Uma queda apos a publicacao pode causar
+reenvio; consumidores devem tratar o `id` do evento de maneira idempotente.
+A confirmacao do broker nao garante que todos os consumidores tenham uma fila
+vinculada. As filas dos consumidores devem estar declaradas antes da publicacao;
+o provisionamento compartilhado dessas filas ainda precisa ser concluido.
+
 ## Executando localmente
 
 ### Pre-requisitos
@@ -106,5 +124,10 @@ Swagger UI disponivel em: `http://localhost:8081/api/v1/swagger-ui.html`
 
 - `docker/Dockerfile` - Imagem Docker multi-stage da aplicacao
 - `docker-compose.yml` - Orquestracao local (app + PostgreSQL + MongoDB + RabbitMQ)
-- `k8s/` - Manifests Kubernetes (namespace, deployment, service, configmap, secret, pvc)
+- `k8s/` - Manifests Kubernetes (namespace, deployment, service e configmap)
 - `.github/workflows/` - Pipelines CI/CD (build, test, deploy)
+
+O deploy Kubernetes requer a infraestrutura compartilhada provisionada previamente:
+PostgreSQL `os-postgresql`, MongoDB `os-mongodb` para historico e o Secret
+`rabbitmq-credentials`. Os bancos e suas credenciais sao gerenciados pela
+infraestrutura, nao pelos manifests de aplicacao.

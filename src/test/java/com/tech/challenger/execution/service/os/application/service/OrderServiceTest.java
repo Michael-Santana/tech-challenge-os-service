@@ -4,7 +4,7 @@ import com.tech.challenger.execution.service.os.application.dto.CreateOrderReque
 import com.tech.challenger.execution.service.os.application.dto.OrderEventResponse;
 import com.tech.challenger.execution.service.os.application.dto.OrderResponse;
 import com.tech.challenger.execution.service.os.application.dto.UpdateOrderStatusRequest;
-import com.tech.challenger.execution.service.os.application.event.OrderEventPublisher;
+import com.tech.challenger.execution.service.os.application.event.OrderOutbox;
 import com.tech.challenger.execution.service.os.application.exception.ResourceNotFoundException;
 import com.tech.challenger.execution.service.os.domain.model.Order;
 import com.tech.challenger.execution.service.os.domain.model.OrderEvent;
@@ -36,16 +36,13 @@ class OrderServiceTest {
     private OrderEventRepository orderEventRepository;
 
     @Mock
-    private OrderEventPublisher eventPublisher;
-
-    @Mock
-    private SagaOrchestrator sagaOrchestrator;
+    private OrderOutbox orderOutbox;
 
     @InjectMocks
     private OrderServiceImpl orderService;
 
     @Test
-    @DisplayName("create deve salvar OS com status RECEBIDA, registrar evento e iniciar saga")
+    @DisplayName("create deve salvar OS com status RECEBIDA e registrar evento na outbox")
     void create_deveSalvarComStatusRecebida() {
         CreateOrderRequest request = new CreateOrderRequest();
         request.setCustomerId(1L);
@@ -68,9 +65,8 @@ class OrderServiceTest {
         assertNotNull(response);
         assertEquals(1L, response.getId());
         assertEquals(OrderStatus.RECEBIDA, response.getStatus());
-        verify(orderEventRepository).save(any(OrderEvent.class));
-        verify(eventPublisher).publish(any(OrderEvent.class));
-        verify(sagaOrchestrator).startOrderCreationSaga(any(Order.class));
+        verify(orderOutbox).enqueue(any(OrderEvent.class));
+        verify(orderEventRepository, never()).save(any(OrderEvent.class));
     }
 
     @Test
@@ -105,8 +101,7 @@ class OrderServiceTest {
         OrderResponse response = orderService.updateStatus(1L, request);
 
         assertEquals(OrderStatus.EM_EXECUCAO, response.getStatus());
-        verify(orderEventRepository).save(any(OrderEvent.class));
-        verify(eventPublisher).publish(any(OrderEvent.class));
+        verify(orderOutbox).enqueue(any(OrderEvent.class));
     }
 
     @Test
@@ -180,4 +175,3 @@ class OrderServiceTest {
         assertThrows(ResourceNotFoundException.class, () -> orderService.getHistory(99L));
     }
 }
-

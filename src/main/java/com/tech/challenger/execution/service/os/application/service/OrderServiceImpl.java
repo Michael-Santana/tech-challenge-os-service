@@ -4,7 +4,7 @@ import com.tech.challenger.execution.service.os.application.dto.CreateOrderReque
 import com.tech.challenger.execution.service.os.application.dto.OrderEventResponse;
 import com.tech.challenger.execution.service.os.application.dto.OrderResponse;
 import com.tech.challenger.execution.service.os.application.dto.UpdateOrderStatusRequest;
-import com.tech.challenger.execution.service.os.application.event.OrderEventPublisher;
+import com.tech.challenger.execution.service.os.application.event.OrderOutbox;
 import com.tech.challenger.execution.service.os.application.exception.ResourceNotFoundException;
 import com.tech.challenger.execution.service.os.domain.model.Order;
 import com.tech.challenger.execution.service.os.domain.model.OrderEvent;
@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,8 +25,7 @@ public class OrderServiceImpl {
 
     private final OrderRepository orderRepository;
     private final OrderEventRepository orderEventRepository;
-    private final OrderEventPublisher eventPublisher;
-    private final SagaOrchestrator sagaOrchestrator;
+    private final OrderOutbox orderOutbox;
 
     @Transactional
     public OrderResponse create(CreateOrderRequest request) {
@@ -39,9 +39,6 @@ public class OrderServiceImpl {
 
         registerEvent(order, "ORDER_CREATED", null, order.getStatus(),
                 "Ordem de servico criada");
-
-        // Inicia a saga de criacao da OS (valida cliente/veiculo, reserva de pecas, etc.)
-        sagaOrchestrator.startOrderCreationSaga(order);
 
         return toResponse(order);
     }
@@ -97,6 +94,7 @@ public class OrderServiceImpl {
     private void registerEvent(Order order, String eventType, OrderStatus previousStatus,
                                OrderStatus newStatus, String description) {
         OrderEvent event = OrderEvent.builder()
+                .id(UUID.randomUUID().toString())
                 .orderId(order.getId())
                 .eventType(eventType)
                 .previousStatus(previousStatus)
@@ -104,8 +102,7 @@ public class OrderServiceImpl {
                 .description(description)
                 .occurredAt(LocalDateTime.now())
                 .build();
-        orderEventRepository.save(event);
-        eventPublisher.publish(event);
+        orderOutbox.enqueue(event);
     }
 
     private OrderResponse toResponse(Order order) {
@@ -133,4 +130,3 @@ public class OrderServiceImpl {
                 .build();
     }
 }
-
