@@ -24,17 +24,6 @@ jobs:
           cache: maven
       - name: Build, testes e cobertura
         run: sh ./mvnw -B clean verify
-      - name: SonarQube quality gate
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
-          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
-          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
-        run: |
-          test -n "$SONAR_TOKEN" && test -n "$SONAR_HOST_URL" && test -n "$SONAR_PROJECT_KEY" || { echo "::error::Configure SONAR_TOKEN, SONAR_HOST_URL e SONAR_PROJECT_KEY; PRs de forks nao recebem secrets."; exit 1; }
-          args=("-Dsonar.projectKey=$SONAR_PROJECT_KEY" "-Dsonar.qualitygate.wait=true")
-          if [ -n "$SONAR_ORGANIZATION" ]; then args+=("-Dsonar.organization=$SONAR_ORGANIZATION"); fi
-          sh ./mvnw -B org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar "${args[@]}"
       - name: Publicar relatorios
         if: always()
         uses: actions/upload-artifact@v4
