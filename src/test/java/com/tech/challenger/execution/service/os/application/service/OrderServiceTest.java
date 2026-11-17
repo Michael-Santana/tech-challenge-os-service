@@ -151,6 +151,33 @@ class OrderServiceTest {
     }
 
     @Test
+    @DisplayName("applyExecutionStatus deve aplicar atualizacoes recebidas por mensageria")
+    void applyExecutionStatus_deveAtualizarStatus() {
+        Order order = Order.builder().id(1L).status(OrderStatus.EM_DIAGNOSTICO).build();
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderService.applyExecutionStatus(1L, OrderStatus.FINALIZADA, "Execucao concluida");
+
+        assertEquals(OrderStatus.FINALIZADA, order.getStatus());
+        assertNotNull(order.getFinishedAt());
+        verify(orderEventRepository).save(any(OrderEvent.class));
+        verify(eventPublisher).publish(any(OrderEvent.class));
+    }
+
+    @Test
+    @DisplayName("applyExecutionStatus deve ignorar notificacoes repetidas")
+    void applyExecutionStatus_statusRepetido_deveSerIdempotente() {
+        Order order = Order.builder().id(1L).status(OrderStatus.EM_EXECUCAO).build();
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        orderService.applyExecutionStatus(1L, OrderStatus.EM_EXECUCAO, "Execucao iniciada");
+
+        verify(orderRepository, never()).save(any());
+        verify(orderEventRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("getHistory deve retornar eventos da OS")
     void getHistory_deveRetornarEventos() {
         Order order = Order.builder().id(1L).status(OrderStatus.RECEBIDA).build();
@@ -180,4 +207,3 @@ class OrderServiceTest {
         assertThrows(ResourceNotFoundException.class, () -> orderService.getHistory(99L));
     }
 }
-

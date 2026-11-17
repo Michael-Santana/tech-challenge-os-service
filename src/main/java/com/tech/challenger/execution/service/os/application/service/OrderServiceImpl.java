@@ -71,6 +71,18 @@ public class OrderServiceImpl {
         return toResponse(order);
     }
 
+    @Transactional
+    public void applyExecutionStatus(Long id, OrderStatus status, String description) {
+        Order order = getOrder(id);
+        if (order.getStatus() == status) {
+            return;
+        }
+        UpdateOrderStatusRequest request = new UpdateOrderStatusRequest();
+        request.setStatus(status);
+        request.setDescription(description);
+        updateStatus(id, request);
+    }
+
     public List<OrderEventResponse> getHistory(Long id) {
         getOrder(id); // garante que a OS existe
         return orderEventRepository.findByOrderIdOrderByOccurredAtAsc(id)
@@ -133,4 +145,3 @@ public class OrderServiceImpl {
                 .build();
     }
 }
-

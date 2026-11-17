@@ -34,9 +34,11 @@ server:
 
 app:
   rabbitmq:
-    exchange: os.exchange
+    exchange: os.exchangeee
     queue: os.events.queue
     routing-key: os.event
+    execution-status-queue: os.execution-status.queue
+    execution-routing-key: execution.status
 
 management:
   endpoints:

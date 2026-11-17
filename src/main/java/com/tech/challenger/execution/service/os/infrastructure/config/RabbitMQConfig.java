@@ -11,6 +11,7 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 /**
  * Configuracao do RabbitMQ para publicacao de eventos da OS.
@@ -27,6 +28,12 @@ public class RabbitMQConfig {
     @Value("${app.rabbitmq.routing-key:os.event}")
     private String routingKey;
 
+    @Value("${app.rabbitmq.execution-status-queue:os.execution-status.queue}")
+    private String executionStatusQueue;
+
+    @Value("${app.rabbitmq.execution-routing-key:execution.status}")
+    private String executionRoutingKey;
+
     @Bean
     public TopicExchange osExchange() {
         return new TopicExchange(exchange, true, false);
@@ -38,8 +45,21 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Binding osEventsBinding(Queue osEventsQueue, TopicExchange osExchange) {
+    public Queue executionStatusQueue() {
+        return new Queue(executionStatusQueue, true);
+    }
+
+    @Bean
+    public Binding osEventsBinding(@Qualifier("osEventsQueue") Queue osEventsQueue,
+                                   @Qualifier("osExchange") TopicExchange osExchange) {
         return BindingBuilder.bind(osEventsQueue).to(osExchange).with(routingKey);
+    }
+
+    @Bean
+    public Binding executionStatusBinding(
+            @Qualifier("executionStatusQueue") Queue executionStatusQueue,
+            @Qualifier("osExchange") TopicExchange osExchange) {
+        return BindingBuilder.bind(executionStatusQueue).to(osExchange).with(executionRoutingKey);
     }
 
     @Bean
@@ -55,4 +75,3 @@ public class RabbitMQConfig {
         return rabbitTemplate;
     }
 }
-
