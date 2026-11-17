@@ -140,3 +140,26 @@ O deploy Kubernetes requer a infraestrutura compartilhada provisionada previamen
 PostgreSQL `os-postgresql`, MongoDB `os-mongodb` para historico e o Secret
 `rabbitmq-credentials`. Os bancos e suas credenciais sao gerenciados pela
 infraestrutura, nao pelos manifests de aplicacao.
+
+## CI/CD e protecao da main
+
+O workflow `OS CI/CD` executa `sh ./mvnw -B clean verify` em PRs e pushes
+para `main` ou `feature/**`, exige 80% de cobertura de linhas no JaCoCo e
+aguarda o quality gate do Sonar. Configure o secret de repositorio
+`SONAR_TOKEN` e as variables `SONAR_HOST_URL` e `SONAR_PROJECT_KEY`;
+para SonarCloud configure tambem `SONAR_ORGANIZATION`. O projeto Sonar deve
+estar configurado para analisar as branches e PRs utilizados.
+
+Apos push validado em `main`, o workflow publica a imagem GHCR com a tag do
+commit e implanta no namespace `os-service`, aguardando o rollout. Configure no
+environment `production` o secret `KUBE_CONFIG` com o kubeconfig completo em
+texto, de um cluster acessivel ao runner, com permissoes para os recursos do
+deploy. Provisione antes os bancos e secrets mencionados acima e o secret
+Kubernetes `ghcr-pull` no namespace `os-service`, com acesso de leitura a imagem
+GHCR. Nao grave credenciais no repositorio.
+
+Configure no GitHub a protecao de `main` para exigir pull request e o check
+`Build, testes e qualidade` apos o workflow estar disponivel no PR. PRs de
+forks nao recebem o secret do Sonar e, por isso, o check falha explicitamente;
+contribuicoes externas devem ser aplicadas em uma branch confiavel do
+repositorio por um mantenedor, sem expor secrets ao codigo nao revisado.

@@ -21,6 +21,8 @@ spec:
       labels:
         app: os-service-app
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull
       # Distribui pods em nos diferentes para alta disponibilidade
       affinity:
         podAntiAffinity:

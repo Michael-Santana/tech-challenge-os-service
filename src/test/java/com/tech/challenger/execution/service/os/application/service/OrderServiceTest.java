@@ -150,14 +150,15 @@ class OrderServiceTest {
     void applyExecutionStatus_deveAtualizarStatus() {
         Order order = Order.builder().id(1L).status(OrderStatus.EM_DIAGNOSTICO).build();
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderService.applyExecutionStatus(1L, OrderStatus.FINALIZADA, "Execucao concluida");
 
         assertEquals(OrderStatus.FINALIZADA, order.getStatus());
         assertNotNull(order.getFinishedAt());
-        verify(orderEventRepository).save(any(OrderEvent.class));
-        verify(eventPublisher).publish(any(OrderEvent.class));
+        verify(orderOutbox).enqueue(any(OrderEvent.class));
+        verify(orderEventRepository, never()).save(any(OrderEvent.class));
     }
 
     @Test
