@@ -81,12 +81,10 @@ jobs:
           chmod 600 $HOME/.kube/config
           kubectl cluster-info
 
-      - name: Aplicar Namespace, ConfigMap, Secrets e PVCs
+      - name: Aplicar Namespace e ConfigMap
         run: |
           kubectl apply -f k8s/namespace.yaml
           kubectl apply -f k8s/configmap.yaml
-          kubectl apply -f k8s/secret.yaml
-          kubectl apply -f k8s/pvc.yaml
 
       - name: Substituir tag da imagem no manifesto
         run: |
@@ -109,4 +107,3 @@ jobs:
         run: |
           kubectl get pods -n os-service -o wide
           kubectl get svc -n os-service
-
